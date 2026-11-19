@@ -1,0 +1,10 @@
+{
+  "name": "@makler/intl-engine",
+  "version": "0.1.0",
+  "description": "International Real Estate Engine for Telegram Business, Dubai/US, Multi-currency, AI replies",
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "@makler/core": "*"
+  }
+}

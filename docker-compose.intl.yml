@@ -1,0 +1,111 @@
+# Daily free-for-broker stack (always-on). Not Render Free.
+# Usage after .env is filled (see .env.server.example):
+#   docker compose -f docker-compose.intl.yml up -d --build
+name: erstantwort-intl-daily
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-intl}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-intl}
+      TZ: ${BROKER_TZ:-Asia/Dubai}
+    # Tuned for a small always-on VPS (2 GB). Raise shared_buffers on larger hosts.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - max_connections=40
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - checkpoint_completion_target=0.9
+    volumes:
+      - intl_pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-intl} -d ${POSTGRES_DB:-intl}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+
+  intl:
+    build:
+      context: .
+      dockerfile: Dockerfile.intl
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      # Prefer PORT (PaaS) then INTL_PORT for local compose.
+      PORT: ${PORT:-}
+      INTL_PORT: ${INTL_PORT:-8791}
+      PRODUCT_MODE: intl
+      CHANNEL_MODE: ${CHANNEL_MODE:-sim}
+      INTL_DATABASE_URL: postgres://${POSTGRES_USER:-intl}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-intl}
+      DATABASE_URL: postgres://${POSTGRES_USER:-intl}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-intl}
+      DATA_DIR: /data
+      EPHEMERAL_DISK: "false"
+      LOG_STDOUT: "true"
+      PG_QUERY_TIMEOUT_MS: ${PG_QUERY_TIMEOUT_MS:-5000}
+      INTL_LIVE_AUTOSEND: "false"
+      INTL_AI_OPTIONS: "false"
+      INTL_WHATSAPP_UI: ${INTL_WHATSAPP_UI:-false}
+      AUTO_SET_WEBHOOK: "true"
+      MULTI_USER: ${MULTI_USER:-true}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS:-*}
+      OWNER_TELEGRAM_ID: ${OWNER_TELEGRAM_ID:-}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      BROKER_TZ: ${BROKER_TZ:-Asia/Dubai}
+      HASH_SALT: ${HASH_SALT:?set HASH_SALT}
+      ENGINE_TOKEN: ${ENGINE_TOKEN:?set ENGINE_TOKEN}
+      REAL_DATA_ALLOWED: ${REAL_DATA_ALLOWED:-false}
+      ALLOW_REAL_DATA: ${ALLOW_REAL_DATA:-false}
+      UI_PUBLIC_BASE: ${UI_PUBLIC_BASE:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+    volumes:
+      - intl_data:/data
+    ports:
+      - "127.0.0.1:${INTL_PUBLISH_PORT:-8791}:8791"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||process.env.INTL_PORT||8791)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    restart: unless-stopped
+    stop_grace_period: 20s
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    # Soft caps for a 2 GB VPS sharing RAM with Postgres.
+    mem_limit: 512m
+    cpus: 1.0
+
+volumes:
+  intl_pgdata:
+  intl_data:

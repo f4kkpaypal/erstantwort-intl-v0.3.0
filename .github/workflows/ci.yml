@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22.13 is the first release with node:sqlite enabled without a flag; keep the floor honest.
+        node: ["22.13", "22"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: typecheck (advisory)
+        continue-on-error: true
+        run: npm run typecheck
+      - name: packaging guard - never ship secrets, databases or session archives
+        run: |
+          set -e
+          forbidden=$(git ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.local$|dsh-session-.*\.(zip|jsonl)$|\.sqlite(-shm|-wal)?$|^var/|(^|/)node_modules/' || true)
+          if [ -n "$forbidden" ]; then
+            echo "Forbidden files are tracked:"; echo "$forbidden"; exit 1
+          fi

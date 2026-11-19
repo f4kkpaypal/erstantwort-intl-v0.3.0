@@ -1,0 +1,6 @@
+{
+  "name": "@makler/mini-app",
+  "version": "0.1.0",
+  "description": "Modular Telegram Mini App client for broker desk",
+  "private": true
+}

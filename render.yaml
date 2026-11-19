@@ -1,0 +1,131 @@
+# Demo may sit on Free (sim only). Daily broker use needs always-on + Postgres.
+# Pilot uses Dockerfile.intl (engine/intlServer.js), never free_host.
+# See docs/DAILY_PILOT.md. CHANNEL_MODE stays sim until pilot day.
+services:
+  - type: web
+    name: erstantwort-intl-demo
+    runtime: docker
+    dockerfilePath: ./Dockerfile.free
+    plan: free
+    region: frankfurt
+    autoDeploy: false
+    healthCheckPath: /healthz
+    envVars:
+      - key: PRODUCT_MODE
+        value: intl
+      - key: CHANNEL_MODE
+        value: sim
+      - key: INTL_LIVE_AUTOSEND
+        value: "false"
+      - key: MAX_REPLIES_PER_CHAT_HOUR
+        value: "20"
+      - key: INTL_DATABASE_URL
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: UI_PUBLIC_BASE
+        sync: false
+      - key: REAL_DATA_ALLOWED
+        value: "false"
+      - key: ALLOW_REAL_DATA
+        value: "false"
+      - key: LLM_MODE
+        value: mock
+      - key: DEMO_UI_NO_AUTH
+        value: "false"
+      - key: BROKER_TZ
+        value: Asia/Dubai
+      - key: DIGEST_TIME
+        value: "08:30"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: AED_PER_USD
+        value: "3.6725"
+      - key: EPHEMERAL_DISK
+        value: "true"
+      - key: INTL_WHATSAPP_UI
+        value: "true"
+      - key: AUTO_SET_WEBHOOK
+        value: "false"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ALLOWED_USER_IDS
+        sync: false
+      - key: TG_TEST_LEAD_IDS
+        sync: false
+      - key: HASH_SALT
+        generateValue: true
+  - type: web
+    name: erstantwort-intl-pilot
+    runtime: docker
+    dockerfilePath: ./Dockerfile.intl
+    plan: starter
+    region: frankfurt
+    autoDeploy: false
+    healthCheckPath: /healthz
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PRODUCT_MODE
+        value: intl
+      - key: CHANNEL_MODE
+        value: sim
+      - key: INTL_LIVE_AUTOSEND
+        value: "false"
+      - key: INTL_AI_OPTIONS
+        value: "false"
+      - key: INTL_WHATSAPP_UI
+        value: "false"
+      - key: MULTI_USER
+        value: "true"
+      - key: AUTO_SET_WEBHOOK
+        value: "true"
+      - key: MAX_REPLIES_PER_CHAT_HOUR
+        value: "20"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: erstantwort-intl-pilot-db
+          property: connectionString
+      - key: INTL_DATABASE_URL
+        fromDatabase:
+          name: erstantwort-intl-pilot-db
+          property: connectionString
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: UI_PUBLIC_BASE
+        sync: false
+      - key: REAL_DATA_ALLOWED
+        value: "false"
+      - key: ALLOW_REAL_DATA
+        value: "false"
+      - key: LLM_MODE
+        value: mock
+      - key: DEMO_UI_NO_AUTH
+        value: "false"
+      - key: BROKER_TZ
+        value: Asia/Dubai
+      - key: DIGEST_TIME
+        value: "08:30"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: AED_PER_USD
+        value: "3.6725"
+      - key: EPHEMERAL_DISK
+        value: "false"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ALLOWED_USER_IDS
+        value: "*"
+      - key: OWNER_TELEGRAM_ID
+        sync: false
+      - key: ENGINE_TOKEN
+        sync: false
+      - key: TG_TEST_LEAD_IDS
+        sync: false
+      - key: HASH_SALT
+        generateValue: true
+databases:
+  - name: erstantwort-intl-pilot-db
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "16"

@@ -1,0 +1,40 @@
+# Production reverse proxy for intl Mini App.
+# Install Caddy on the host, point DNS A → VPS, then:
+#   sudo cp Caddyfile.intl /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Replace app.your-domain.ae with UI_PUBLIC_BASE host (no path).
+
+app.your-domain.ae {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# Long-lived cache only for fingerprinted/static assets; HTML stays short.
+	@static path *.js *.css *.svg *.woff2
+	header @static Cache-Control "public, max-age=86400"
+
+	reverse_proxy 127.0.0.1:8791 {
+		health_uri /healthz
+		health_interval 15s
+		health_timeout 5s
+		lb_try_duration 4s
+		transport http {
+			read_timeout 60s
+			write_timeout 60s
+			dial_timeout 5s
+		}
+	}
+
+	log {
+		output file /var/log/caddy/erstantwort-intl.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+	}
+}

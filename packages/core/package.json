@@ -1,0 +1,8 @@
+{
+  "name": "@makler/core",
+  "version": "0.1.0",
+  "description": "Shared core utilities: hashing, PII redaction, client IP, normalization",
+  "main": "index.js",
+  "types": "../../types/index.d.ts",
+  "private": true
+}

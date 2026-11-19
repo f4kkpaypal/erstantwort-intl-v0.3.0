@@ -1,0 +1,54 @@
+{
+  "name": "anfragen-autopilot",
+  "private": true,
+  "version": "0.5.12",
+  "description": "Anfragen-Autopilot für Makler — Loom slice. n8n orchestrates, this package holds the tested lead pipeline.",
+  "type": "commonjs",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "test": "node --test",
+    "test:local": "node scripts/local-test.js",
+    "verify": "npm run check && npm run test:local",
+    "check": "node --check engine/server.js && node --check web/server.js && node --check core/index.js && node --check core/intl/service.js",
+    "typecheck": "tsc --noEmit",
+    "start": "node engine/server.js",
+    "demo": "node scripts/demo_local.js",
+    "demo:ui": "node web/server.js",
+    "build:workflows": "node scripts/build_workflows.js",
+    "ops:backup": "node scripts/ops.js backup",
+    "ops:restore-check": "node scripts/ops.js restore-check",
+    "ops:health": "node scripts/watch.js",
+    "erase": "node scripts/erase.js",
+    "office:check": "node scripts/office.js check",
+    "battle": "sh scripts/battle.sh",
+    "landing": "node landing/render.js",
+    "demo:intl": "node scripts/demo_intl.js",
+    "holdout": "node scripts/holdout.js",
+    "typecheck:strict": "tsc -p tsconfig.strict.json",
+    "migrate:smoke": "node scripts/pg_migrate_smoke.js",
+    "ops:backup-intl": "node scripts/backup_intl.js",
+    "smoke:team": "node scripts/team_smoke.js",
+    "preflight": "node scripts/preflight_server.js"
+  },
+  "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "ipaddr.js": "^2.5.0",
+    "jpeg-js": "^0.4.4",
+    "luxon": "^3.7.2",
+    "nodemailer": "^7.0.11",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.16.3",
+    "pngjs": "^7.0.0",
+    "undici": "^7.30.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@makler/de-engine",
+  "version": "0.1.0",
+  "description": "German Real Estate Lead Automation Engine (ImmoScout24, OpenImmo, GDPR/DSGVO, n8n)",
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "@makler/core": "*"
+  }
+}
