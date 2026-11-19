@@ -463,7 +463,17 @@ html[data-theme="dark"] .draftmsg { border-color: var(--sep); }
 
 /* ======================= Responsive pass v3 (phone-first) ======================= */
 html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
-#app { width: 100%; max-width: 500px; margin: 0 auto; padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+/* Center with margin only. Do NOT add (100vw-max)/2 as padding: with border-box
+   that steals width from the 500px shell and crushes the Objects form to a 1px strip. */
+#app {
+  width: 100%;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  box-sizing: border-box;
+}
 :root { --gap: clamp(12px, 4.2vw, 18px); }
 
 /* header */
@@ -566,7 +576,22 @@ input, textarea, select { max-width: 100%; }
 .thumbs img { height: clamp(64px, 19vw, 80px); }
 .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
 .btnrow .btn { flex: 1 1 0; min-width: 0; }
-.card.form { padding: clamp(12px, 3.6vw, 14px); }
+.card.form {
+  padding: clamp(12px, 3.6vw, 14px);
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: visible;
+}
+.card.form input,
+.card.form select,
+.card.form textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 
 /* confirm rows (processed folder) */
 .confirmrow { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; border-bottom: 1px solid var(--sep); }
@@ -586,9 +611,7 @@ input, textarea, select { max-width: 100%; }
   .tabs svg { width: 20px; height: 20px; }
   .stats.metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@media (min-width: 480px) {
-  #app { padding-left: max(env(safe-area-inset-left), calc((100vw - 500px) / 2)); padding-right: max(env(safe-area-inset-right), calc((100vw - 500px) / 2)); }
-}
+/* intentionally no desktop padding-centering on #app — see note above */
 /* --- narrow-screen polish: actions, tool tiles, confirm rows --- */
 .confirmrow { flex-direction: row; align-items: center; gap: 8px; padding: 8px 12px; }
 .confirmrow .item { flex: 1 1 auto; min-width: 0; padding: 8px 0 8px 2px; }

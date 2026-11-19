@@ -1,7 +1,7 @@
 {
   "name": "anfragen-autopilot",
   "private": true,
-  "version": "0.5.12",
+  "version": "0.5.13",
   "description": "Anfragen-Autopilot für Makler — Loom slice. n8n orchestrates, this package holds the tested lead pipeline.",
   "type": "commonjs",
   "workspaces": [

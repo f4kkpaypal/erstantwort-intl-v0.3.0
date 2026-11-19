@@ -66,6 +66,12 @@ test('properties tab uses a sticky save button with an explicit click handler', 
   assert.match(css, /\.formerr/);
 });
 
+test('desktop layout does not crush #app with viewport padding math', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'ui-intl', 'style.css'), 'utf8');
+  assert.doesNotMatch(css, /#app\s*\{[^}]*100vw\s*-\s*500px/);
+  assert.doesNotMatch(css, /padding-left:\s*max\([^;]*100vw\s*-\s*500px/);
+});
+
 test('POST /v1/intl/properties saves meeting_point and listing without scheme', async () => {
   const { config, intl, file } = openIntl();
   const server = buildIntlServer(config, intl);
