@@ -176,7 +176,7 @@ test('the client-error endpoint accepts boot failures and never leaks the body',
 });
 
 test('UI wires the reactive store, global interception, retry and trimmed settings', () => {
-  assert.match(index, /<script src="store\.js"><\/script>\s*<script src="tgLaunch\.js"><\/script>/);
+  assert.match(index, /<script src="store\.js(?:\?[^"]*)?"><\/script>\s*<script src="tgLaunch\.js(?:\?[^"]*)?"><\/script>/);
   assert.match(app, /uiStore/);
   assert.match(app, /DSHStore\.createStore/);
   assert.match(app, /function reportError\(/);
