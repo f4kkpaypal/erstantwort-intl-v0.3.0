@@ -775,8 +775,10 @@ function serveStatic(res, pathname) {
   }
   const ext = path.extname(file);
   const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml' };
-  // HTML/i18n stay fresh; static assets can be cached at the edge/browser for a day.
-  const cacheable = ext === '.js' || ext === '.css' || ext === '.svg';
+  // Keep UI shell + app code fresh so Mini App clients pick up save/auth fixes after deploy.
+  // Only long-lived vendor/font-like assets may be cached for a day.
+  const base = path.basename(file);
+  const cacheable = ext === '.svg' || base === 'telegram-web-app.js';
   res.writeHead(200, {
     'Content-Type': types[ext] || 'application/octet-stream',
     'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'",

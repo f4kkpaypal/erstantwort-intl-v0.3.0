@@ -1809,12 +1809,14 @@ async function showProperties() {
       <button class="btn sec" id="makePdf" type="button">${esc(t('makePdf'))}</button>
       ${preview}
       <label class="check"><input id="pbrochure" type="checkbox" ${fields.brochure ? 'checked' : ''}> ${esc(t('makeBrochure'))}</label>
-      <button class="btn" id="saveProp" type="submit">${esc(t('saveProperty'))}</button>
+      <p id="formError" class="formerr" role="alert"></p>
       <button class="btn sec" id="backProp" type="button">${esc(t('backNav'))}</button>
-      <p id="formError" role="alert"></p>
     </form>`;
   };
   const newForm = state.addProperty && !editing ? formFor(null) : '';
+  const saveBar = state.addProperty
+    ? `<div class="actbar prop-act"><div class="btnrow"><button class="btn go" id="saveProp" type="button">${esc(t('saveProperty'))}</button></div></div>`
+    : '';
   const cards = properties.map((row) => {
     const open = state.openProperty === row.id;
     const price = state.lang === 'ru' ? (row.price_ru || '') : (row.price_en || '');
@@ -1843,7 +1845,7 @@ async function showProperties() {
   shell(`
     <div class="hd"><div class="hd-row"><h1>${esc(t('properties'))}</h1>${langSwitchHtml()}</div></div>
     ${newForm || `<button class="btn sec queuebtn" id="addProp" type="button">${esc(t('addProperty'))}</button>`}
-    <div class="proplist">${cards}</div>`, badge);
+    <div class="proplist">${cards}</div>${saveBar}`, badge);
   const fields = state.addProperty ? (state.propertyDrafts[propertyDraftKey()] || draftFromRow(editing)) : null;
   const closePropertyPanels = () => {
     state.showPropertyLeads = '';
@@ -1852,6 +1854,119 @@ async function showProperties() {
     state.pdfFor = '';
     state.importOffer = null;
     state.importNote = '';
+  };
+  const showPropFail = (message) => {
+    const text = String(message || t('invalidProperty'));
+    const errEl = document.getElementById('formError');
+    if (errEl) {
+      errEl.textContent = text;
+      try { errEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch { /* ignore */ }
+    }
+    state.notice = text;
+    const toast = document.querySelector('.toast');
+    if (!toast) {
+      const node = document.createElement('p');
+      node.className = 'toast';
+      node.setAttribute('role', 'status');
+      node.textContent = text;
+      app.appendChild(node);
+      setTimeout(() => node.remove(), 3200);
+    }
+    haptic('error');
+  };
+  const savePropertyNow = async () => {
+    const saveBtn = document.getElementById('saveProp');
+    if (saveBtn && saveBtn.dataset.busy === '1') return;
+    if (saveBtn) {
+      saveBtn.dataset.busy = '1';
+      saveBtn.disabled = true;
+      saveBtn.textContent = state.lang === 'ru' ? 'Сохранение…' : 'Saving…';
+    }
+    const errEl = document.getElementById('formError');
+    if (errEl) errEl.textContent = '';
+    try {
+      if (!document.getElementById('propForm')) throw Object.assign(new Error('invalid_property'), { body: { error_code: 'invalid_property' } });
+      rememberPropertyDraft();
+      const kindEl = document.getElementById('pkind');
+      const periodEl = document.getElementById('pperiod');
+      const kind = (kindEl && kindEl.value) || 'rent';
+      let period = periodEl && periodEl.value;
+      if (!period) period = kind === 'sale' ? 'total' : 'year';
+      if (periodEl && !periodEl.value) periodEl.value = period;
+      const roomsRaw = (document.getElementById('prooms') || {}).value || '';
+      const areaRaw = (document.getElementById('parea') || {}).value || '';
+      const rooms = String(roomsRaw).trim();
+      const area = String(areaRaw).trim();
+      const key = propertyDraftKey();
+      const title = String((document.getElementById('ptitle') || {}).value || '').trim();
+      const price = parsePriceInput((document.getElementById('pprice') || {}).value || '');
+      const listingUrl = normalizeListingUrl((document.getElementById('plink') || {}).value || '');
+      if (!title) {
+        showPropFail(t('propertyNeedTitle'));
+        return;
+      }
+      if (!Number.isFinite(price) || price <= 0) {
+        showPropFail(t('propertyNeedPrice'));
+        return;
+      }
+      if (listingUrl && !/^https?:\/\//i.test(listingUrl) && !listingUrl.startsWith('/')) {
+        showPropFail(t('propertyBadLink'));
+        return;
+      }
+      const photos = (state.photoDraft || [])
+        .map((photo) => (photo.id ? `file:${photo.id}` : photo.dataUrl))
+        .filter((item) => typeof item === 'string' && item);
+      const currency = (document.getElementById('pcurrency') || {}).value || 'AED';
+      const result = await api(withWorkspace('/v1/intl/properties'), {
+        method: 'POST',
+        body: JSON.stringify({
+          id: editing?.id,
+          title,
+          address: String((document.getElementById('paddress') || {}).value || '').trim(),
+          district: String((document.getElementById('pdistrict') || {}).value || '').trim(),
+          meeting_point: String((document.getElementById('pmeeting') || {}).value || '').trim(),
+          access_notes: String((document.getElementById('paccess') || {}).value || '').trim(),
+          kind,
+          price,
+          currency,
+          price_period: period,
+          bedrooms: rooms === '' ? null : Number(rooms),
+          area_value: area === '' ? null : Number(area),
+          area_unit: area === '' ? '' : ((document.getElementById('punit') || {}).value || 'sqft'),
+          listing_url: listingUrl,
+          facts: { description: String((document.getElementById('pdesc') || {}).value || '').trim() },
+          plan_url: editing?.plan_url || '',
+          photos,
+          make_brochure: Boolean(document.getElementById('pbrochure') && document.getElementById('pbrochure').checked),
+          tz: editing?.tz || state.brokerTz || 'Asia/Dubai',
+          tz_label_en: editing?.tz_label_en || 'Dubai time',
+          tz_label_ru: editing?.tz_label_ru || 'время Дубая',
+        }),
+      });
+      if (!result || result.ok === false) {
+        throw Object.assign(new Error(result?.error_code || 'invalid_property'), { body: result || { error_code: 'invalid_property' } });
+      }
+      delete state.propertyDrafts[key];
+      state.photoDraft = [];
+      state.addProperty = false;
+      state.editProperty = null;
+      state.pdfFor = '';
+      state.importOffer = null;
+      state.importNote = '';
+      state.openProperty = result.id || editing?.id || '';
+      state.notice = t('propertySaved');
+      haptic('success');
+      await showProperties();
+    } catch (err) {
+      showPropFail(errText(err));
+    } finally {
+      const btn = document.getElementById('saveProp');
+      if (btn) {
+        btn.dataset.busy = '0';
+        btn.disabled = false;
+        btn.textContent = t('saveProperty');
+      }
+    }
   };
   app.querySelectorAll('[data-acc]').forEach((button) => {
     button.onclick = () => {
@@ -1908,7 +2023,21 @@ async function showProperties() {
     if (dirty) state.notice = t('draftKept');
     showProperties().catch(fail);
   };
+  const saveBtn = document.getElementById('saveProp');
+  if (saveBtn) {
+    saveBtn.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      savePropertyNow().catch((err) => showPropFail(errText(err)));
+    };
+  }
   const formEl = document.getElementById('propForm');
+  if (formEl) {
+    formEl.onsubmit = (event) => {
+      event.preventDefault();
+      savePropertyNow().catch((err) => showPropFail(errText(err)));
+    };
+  }
   if (formEl && fields) {
     const fillPeriods = () => {
       const kind = document.getElementById('pkind').value;
@@ -1918,11 +2047,15 @@ async function showProperties() {
       const allowed = options.some(([value]) => value === current);
       document.getElementById('pperiod').value = allowed ? current : options[0][0];
     };
-    document.getElementById('pkind').value = fields.kind || 'rent';
-    fillPeriods();
-    document.getElementById('pcurrency').value = fields.currency || 'AED';
-    if (fields.unit) document.getElementById('punit').value = fields.unit;
-    document.getElementById('pkind').onchange = fillPeriods;
+    try {
+      document.getElementById('pkind').value = fields.kind || 'rent';
+      fillPeriods();
+      document.getElementById('pcurrency').value = fields.currency || 'AED';
+      if (fields.unit) document.getElementById('punit').value = fields.unit;
+      document.getElementById('pkind').onchange = fillPeriods;
+    } catch (err) {
+      showPropFail(errText(err));
+    }
     const importLink = document.getElementById('importLink');
     if (importLink) importLink.onclick = () => {
       importLink.disabled = true;
@@ -1982,80 +2115,6 @@ async function showProperties() {
         return;
       }
       openPropertyPdf(row.id).catch((err) => { state.notice = errText(err); showProperties().catch(fail); });
-    };
-    formEl.onsubmit = async (event) => {
-      event.preventDefault();
-      const errEl = document.getElementById('formError');
-      if (errEl) errEl.textContent = '';
-      try {
-        rememberPropertyDraft();
-        const rooms = document.getElementById('prooms').value.trim();
-        const area = document.getElementById('parea').value.trim();
-        const key = propertyDraftKey();
-        const title = document.getElementById('ptitle').value.trim();
-        const price = parsePriceInput(document.getElementById('pprice').value);
-        const listingUrl = normalizeListingUrl(document.getElementById('plink').value);
-        if (!title) {
-          if (errEl) errEl.textContent = t('propertyNeedTitle');
-          return;
-        }
-        if (!Number.isFinite(price) || price <= 0) {
-          if (errEl) errEl.textContent = t('propertyNeedPrice');
-          return;
-        }
-        if (listingUrl && !/^https?:\/\//i.test(listingUrl) && !listingUrl.startsWith('/')) {
-          if (errEl) errEl.textContent = t('propertyBadLink');
-          return;
-        }
-        const photos = (state.photoDraft || [])
-          .map((photo) => (photo.id ? `file:${photo.id}` : photo.dataUrl))
-          .filter((item) => typeof item === 'string' && item);
-        const saveBtn = document.getElementById('saveProp');
-        if (saveBtn) saveBtn.disabled = true;
-        const result = await api(withWorkspace('/v1/intl/properties'), {
-          method: 'POST',
-          body: JSON.stringify({
-            id: editing?.id,
-            title,
-            address: document.getElementById('paddress').value.trim(),
-            district: document.getElementById('pdistrict').value.trim(),
-            meeting_point: document.getElementById('pmeeting').value.trim(),
-            access_notes: document.getElementById('paccess').value.trim(),
-            kind: document.getElementById('pkind').value,
-            price,
-            currency: document.getElementById('pcurrency').value,
-            price_period: document.getElementById('pperiod').value,
-            bedrooms: rooms === '' ? null : Number(rooms),
-            area_value: area === '' ? null : Number(area),
-            area_unit: area === '' ? '' : document.getElementById('punit').value,
-            listing_url: listingUrl,
-            facts: { description: document.getElementById('pdesc').value.trim() },
-            plan_url: editing?.plan_url || '',
-            photos,
-            make_brochure: document.getElementById('pbrochure').checked,
-            tz: editing?.tz || state.brokerTz || 'Asia/Dubai',
-            tz_label_en: editing?.tz_label_en || 'Dubai time',
-            tz_label_ru: editing?.tz_label_ru || 'время Дубая',
-          }),
-        });
-        if (!result || result.ok === false) {
-          throw Object.assign(new Error(result?.error_code || 'invalid_property'), { body: result || { error_code: 'invalid_property' } });
-        }
-        delete state.propertyDrafts[key];
-        state.photoDraft = [];
-        state.addProperty = false;
-        state.editProperty = null;
-        state.pdfFor = '';
-        state.openProperty = result.id || editing?.id || '';
-        state.notice = t('propertySaved');
-        haptic('success');
-        showProperties().catch(fail);
-      } catch (err) {
-        haptic('error');
-        report(err);
-        const saveBtn = document.getElementById('saveProp');
-        if (saveBtn) saveBtn.disabled = false;
-      }
     };
   }
 }

@@ -55,6 +55,17 @@ test('mini app ships a local Telegram WebApp SDK and waits for initData', () => 
   assert.match(app, /normalizeListingUrl/);
 });
 
+test('properties tab uses a sticky save button with an explicit click handler', () => {
+  const app = fs.readFileSync(path.join(ROOT, 'ui-intl', 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(ROOT, 'ui-intl', 'style.css'), 'utf8');
+  assert.match(app, /savePropertyNow/);
+  assert.match(app, /id="saveProp" type="button"/);
+  assert.match(app, /prop-act/);
+  assert.match(app, /saveBtn\.onclick/);
+  assert.match(css, /\.prop-act/);
+  assert.match(css, /\.formerr/);
+});
+
 test('POST /v1/intl/properties saves meeting_point and listing without scheme', async () => {
   const { config, intl, file } = openIntl();
   const server = buildIntlServer(config, intl);
